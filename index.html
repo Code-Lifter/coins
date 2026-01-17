@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Token Board V4.1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Token Board V4.2</title>
     <style>
         /* --- CSS STYLES --- */
         body {
@@ -11,11 +11,14 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #222;
             color: white;
-            height: 100vh;
+            /* THE FIX: Use dvh (dynamic viewport height) instead of vh */
+            height: 100dvh; 
             width: 100vw;
             overflow: hidden;
             position: fixed;
             touch-action: none;
+            /* THE FIX: Respect iPhone Notch/Home Bar area */
+            padding-bottom: env(safe-area-inset-bottom);
         }
 
         /* Setup Screen Overlay */
@@ -39,10 +42,10 @@
             border: none; border-radius: 8px; cursor: pointer; 
         }
 
-        /* --- NEW WIN MODAL STYLE --- */
+        /* --- WIN MODAL --- */
         #win-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.92); /* Darker background */
+            background: rgba(0, 0, 0, 0.92);
             z-index: 5000;
             display: none; 
             flex-direction: column;
@@ -51,37 +54,28 @@
             animation: fadeIn 0.4s ease;
         }
 
-        /* Line 1: "You have reached" */
         #win-screen p { 
-            font-size: 1.2rem; 
-            color: #888; 
-            margin: 0; 
-            text-transform: uppercase; 
-            letter-spacing: 3px;
-            font-weight: bold;
+            font-size: 1.2rem; color: #888; margin: 0; 
+            text-transform: uppercase; letter-spacing: 3px; font-weight: bold;
         }
 
-        /* Line 2: The Big Number */
         #win-screen h1 { 
-            font-size: 9rem; /* Massive text */
-            margin: 10px 0 40px 0; 
-            color: #f1c40f; 
-            line-height: 1;
+            font-size: 9rem; margin: 10px 0 40px 0; 
+            color: #f1c40f; line-height: 1;
             text-shadow: 0 0 30px rgba(241, 196, 15, 0.3); 
         }
         
         button.continue-btn {
             padding: 15px 40px; font-size: 1rem;
-            background: transparent; 
-            color: white; 
+            background: transparent; color: white; 
             border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 50px; 
-            cursor: pointer;
-            transition: all 0.2s;
+            border-radius: 50px; cursor: pointer; transition: all 0.2s;
         }
         button.continue-btn:active { background: white; color: black; }
 
         /* --- UI ZONES --- */
+        /* Use calc() to keep buttons above the Safe Area (Home Bar) */
+        
         #token-bank {
             background-color: #2d2d2d;
             display: flex; justify-content: center; gap: 15px;
@@ -90,7 +84,10 @@
         }
 
         #reset-btn {
-            position: absolute; bottom: 30px; left: 20px;
+            position: absolute; 
+            /* Push up by 20px PLUS the safe area */
+            bottom: calc(20px + env(safe-area-inset-bottom)); 
+            left: 20px;
             width: 70px; height: 70px;
             background-color: rgba(255, 255, 255, 0.08);
             color: rgba(255, 255, 255, 0.7);
@@ -102,7 +99,10 @@
         #reset-btn:active { background-color: rgba(255, 255, 255, 0.2); transform: scale(0.95); }
 
         #trash-zone {
-            position: absolute; bottom: 30px; right: 20px;
+            position: absolute; 
+            /* Push up by 20px PLUS the safe area */
+            bottom: calc(20px + env(safe-area-inset-bottom)); 
+            right: 20px;
             width: 70px; height: 70px;
             border: 2px dashed #555; border-radius: 15px;
             display: flex; align-items: center; justify-content: center;
@@ -112,7 +112,10 @@
         #trash-zone.hovered { background-color: rgba(231, 76, 60, 0.2); border-color: #e74c3c; color: #e74c3c; }
 
         #total-score {
-            position: absolute; bottom: 30px; left: 0; right: 0; 
+            position: absolute; 
+            /* Push up by 20px PLUS the safe area */
+            bottom: calc(20px + env(safe-area-inset-bottom)); 
+            left: 0; right: 0; 
             text-align: center; font-size: 5rem; line-height: 1; font-weight: bold;
             color: rgba(255, 255, 255, 0.25); pointer-events: none; user-select: none; z-index: 1; 
         }
@@ -258,7 +261,7 @@
         function checkWinCondition() {
             if (state.target !== null && state.score >= state.target && !state.won) {
                 state.won = true; 
-                winDisplayScore.textContent = state.score; // Updates the big number
+                winDisplayScore.textContent = state.score;
                 winScreen.style.display = 'flex'; 
                 saveState();
             }
@@ -313,8 +316,11 @@
                 let nx = e.clientX - shiftX;
                 let ny = e.clientY - shiftY;
                 
+                // Adjust boundaries for SafeArea
+                const safeBottom = 0; // Simplified for dragging, visuals handle the rest
                 const maxX = window.innerWidth - elem.offsetWidth;
                 const maxY = window.innerHeight - elem.offsetHeight;
+                
                 if (nx < 0) nx = 0; if (nx > maxX) nx = maxX;
                 if (ny < 0) ny = 0; if (ny > maxY) ny = maxY;
 
@@ -366,9 +372,7 @@
                 
                 updateTokenState(id, val, currentX, parseFloat(elem.style.top), globalZ);
                 updateScoreDisplay();
-                
                 checkWinCondition();
-                
                 saveState();
             }
 
