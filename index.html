@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Token Board V2.1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Token Board V4.1</title>
     <style>
         /* --- CSS STYLES --- */
         body {
@@ -11,13 +11,14 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #222;
             color: white;
-            display: flex;
-            flex-direction: column;
             height: 100vh;
+            width: 100vw;
             overflow: hidden;
-            touch-action: none; 
+            position: fixed;
+            touch-action: none;
         }
 
+        /* Setup Screen Overlay */
         #setup-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: #111; z-index: 99999;
@@ -25,215 +26,383 @@
             align-items: center; justify-content: center;
         }
         
-        input { padding: 15px; font-size: 1.2rem; width: 80%; margin-bottom: 20px; border-radius: 8px; border: none; text-align: center; }
-        button.start-btn { padding: 15px 40px; font-size: 1.2rem; background-color: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        .input-group { width: 70%; margin-bottom: 20px; display: flex; flex-direction: column; gap: 5px; }
+        label { color: #888; font-size: 0.8rem; text-align: left; margin-left: 5px; }
+        input { 
+            padding: 15px; font-size: 1.1rem; width: 100%; box-sizing: border-box;
+            border-radius: 8px; border: 1px solid #444; 
+            background: #222; color: white; text-align: center; 
+        }
+        button.start-btn { 
+            padding: 15px 40px; font-size: 1.2rem; margin-top: 10px;
+            background-color: #27ae60; color: white; 
+            border: none; border-radius: 8px; cursor: pointer; 
+        }
 
-        /* The Top Bank */
+        /* --- NEW WIN MODAL STYLE --- */
+        #win-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.92); /* Darker background */
+            z-index: 5000;
+            display: none; 
+            flex-direction: column;
+            align-items: center; justify-content: center;
+            backdrop-filter: blur(8px);
+            animation: fadeIn 0.4s ease;
+        }
+
+        /* Line 1: "You have reached" */
+        #win-screen p { 
+            font-size: 1.2rem; 
+            color: #888; 
+            margin: 0; 
+            text-transform: uppercase; 
+            letter-spacing: 3px;
+            font-weight: bold;
+        }
+
+        /* Line 2: The Big Number */
+        #win-screen h1 { 
+            font-size: 9rem; /* Massive text */
+            margin: 10px 0 40px 0; 
+            color: #f1c40f; 
+            line-height: 1;
+            text-shadow: 0 0 30px rgba(241, 196, 15, 0.3); 
+        }
+        
+        button.continue-btn {
+            padding: 15px 40px; font-size: 1rem;
+            background: transparent; 
+            color: white; 
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50px; 
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button.continue-btn:active { background: white; color: black; }
+
+        /* --- UI ZONES --- */
         #token-bank {
-            background-color: #333;
-            padding: 10px;
+            background-color: #2d2d2d;
             display: flex; justify-content: center; gap: 15px;
-            border-bottom: 2px solid #555;
-            height: 80px; 
-            align-items: center;
-            z-index: 100; /* Bank stays above playing field */
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            height: 90px; align-items: center; z-index: 100;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 100%;
         }
 
-        /* The Player Area */
-        #player-zone {
-            flex-grow: 1; position: relative; background-color: #1a1a1a;
+        #reset-btn {
+            position: absolute; bottom: 30px; left: 20px;
+            width: 70px; height: 70px;
+            background-color: rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.7);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px; font-weight: bold; font-size: 0.75rem;
+            cursor: pointer; z-index: 200; display: none;
+            text-transform: uppercase; backdrop-filter: blur(5px);
         }
+        #reset-btn:active { background-color: rgba(255, 255, 255, 0.2); transform: scale(0.95); }
+
+        #trash-zone {
+            position: absolute; bottom: 30px; right: 20px;
+            width: 70px; height: 70px;
+            border: 2px dashed #555; border-radius: 15px;
+            display: flex; align-items: center; justify-content: center;
+            color: #555; z-index: 5; transition: all 0.2s; user-select: none;
+        }
+        #trash-zone svg { width: 32px; height: 32px; }
+        #trash-zone.hovered { background-color: rgba(231, 76, 60, 0.2); border-color: #e74c3c; color: #e74c3c; }
 
         #total-score {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 8rem; font-weight: bold;
-            color: rgba(255, 255, 255, 0.05);
-            pointer-events: none; user-select: none;
+            position: absolute; bottom: 30px; left: 0; right: 0; 
+            text-align: center; font-size: 5rem; line-height: 1; font-weight: bold;
+            color: rgba(255, 255, 255, 0.25); pointer-events: none; user-select: none; z-index: 1; 
         }
 
-        /* Trash Zone */
-        #trash-zone {
-            position: absolute; bottom: 20px; right: 20px;
-            width: 80px; height: 80px;
-            border: 2px dashed #e74c3c; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            color: #e74c3c; font-weight: bold; font-size: 0.9rem;
-            z-index: 5; transition: background 0.2s;
-        }
-        #trash-zone.hovered { background-color: rgba(231, 76, 60, 0.3); color: white; }
-
-        /* The Tokens */
         .token {
-            width: 55px; height: 55px;
-            border-radius: 50%;
+            width: 60px; height: 60px; border-radius: 50%;
             display: flex; justify-content: center; align-items: center;
-            font-weight: bold; font-size: 1.1rem; color: #fff;
-            cursor: grab; user-select: none;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
-            position: relative; 
-            background: linear-gradient(135deg, #555, #333);
-            border: 2px solid rgba(255,255,255,0.2);
+            font-weight: bold; font-size: 1.2rem; color: #fff;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5); cursor: grab; user-select: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4); position: relative; 
+            border: 3px solid rgba(255,255,255,0.15);
         }
+        .token.dragging { box-shadow: 0 15px 30px rgba(0,0,0,0.5); transform: scale(1.15); border-color: white; cursor: grabbing; }
 
-        /* Scale up slightly when dragging to show it's active */
-        .token.dragging {
-            box-shadow: 0 10px 20px rgba(0,0,0,0.6);
-            transform: scale(1.15);
-            border-color: white;
-            cursor: grabbing;
-        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
     </style>
 </head>
 <body>
 
     <div id="setup-screen">
-        <h2 style="color:#ddd;">Game Setup</h2>
-        <input type="text" id="coin-values" value="1, 5, 10, 50">
-        <button class="start-btn" onclick="startGame()">Start Game</button>
+        <h2 style="color:#ddd; margin-bottom:20px;">Board Setup</h2>
+        
+        <div class="input-group">
+            <label>COIN VALUES</label>
+            <input type="text" id="coin-values" value="" placeholder="e.g. 1, 5, 10, 50">
+        </div>
+
+        <div class="input-group">
+            <label>TARGET SCORE (Optional)</label>
+            <input type="number" id="target-score" placeholder="e.g. 100">
+        </div>
+
+        <button class="start-btn" onclick="initGame()">Create Board</button>
     </div>
 
+    <div id="win-screen">
+        <p>YOU HAVE REACHED</p>
+        <h1 id="win-display-score">0</h1>
+        <button class="continue-btn" onclick="dismissWin()">Keep Playing</button>
+    </div>
+
+    <button id="reset-btn" onclick="resetGame()">RESET</button>
+    <div id="total-score">0</div>
+    
+    <div id="trash-zone">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 4h-3.5l-1-1h-5l-1 1H5v2h14M6 19a2 2 0 002 2h8a2 2 0 002-2V7H6v12z"/>
+        </svg>
+    </div>
+    
     <div id="token-bank"></div>
-
-    <div id="player-zone">
-        <div id="total-score">0</div>
-        <div id="trash-zone">TRASH</div>
-    </div>
+    <div id="player-zone"></div>
 
     <script>
+        // --- CONFIG & STATE ---
         const bank = document.getElementById('token-bank');
         const trash = document.getElementById('trash-zone');
         const scoreDisplay = document.getElementById('total-score');
-        const colors = ['#e67e22', '#3498db', '#9b59b6', '#2ecc71', '#f1c40f', '#e74c3c'];
+        const setupScreen = document.getElementById('setup-screen');
+        const winScreen = document.getElementById('win-screen');
+        const winDisplayScore = document.getElementById('win-display-score');
+        const resetBtn = document.getElementById('reset-btn');
         
-        let currentScore = 0;
-        let globalZIndex = 1000; // Keeps track of top-most item
+        const palette = [
+            '#e74c3c', '#3498db', '#f1c40f', '#9b59b6', 
+            '#2ecc71', '#e67e22', '#1abc9c', '#34495e', '#d35400', '#7f8c8d'
+        ];
 
-        function startGame() {
-            const input = document.getElementById('coin-values').value;
-            const values = input.split(',').map(v => parseInt(v.trim())).filter(n => !isNaN(n));
+        let state = {
+            active: false,
+            score: 0,
+            target: null, 
+            won: false,   
+            values: [],
+            tokens: []
+        };
+
+        let globalZ = 1000;
+
+        // --- INITIALIZATION ---
+        window.addEventListener('DOMContentLoaded', () => {
+            const saved = localStorage.getItem('tokenBoardState');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    if(parsed.active && parsed.values.length > 0) {
+                        state = parsed;
+                        restoreGame();
+                    }
+                } catch(e) { console.log('Save file corrupt'); }
+            }
+        });
+
+        function initGame() {
+            const valInput = document.getElementById('coin-values').value;
+            const targetInput = document.getElementById('target-score').value;
             
-            if (values.length === 0) { alert("Enter numbers!"); return; }
+            const values = valInput.split(',').map(v => parseInt(v.trim())).filter(n => !isNaN(n));
+            const target = parseInt(targetInput);
 
-            bank.innerHTML = ''; 
-            values.forEach((val, index) => {
-                const btn = document.createElement('div');
-                btn.className = 'token bank-token';
-                btn.textContent = val;
-                btn.dataset.value = val;
-                btn.style.backgroundColor = colors[index % colors.length];
-                // Use pointerdown to start the process
-                btn.addEventListener('pointerdown', spawnToken);
-                bank.appendChild(btn);
+            if (values.length === 0) { alert("Please enter at least one coin value."); return; }
+
+            state.values = values;
+            state.target = isNaN(target) ? null : target;
+            state.active = true;
+            state.score = 0;
+            state.won = false;
+            state.tokens = [];
+            
+            saveState();
+            renderBank();
+            setupScreen.style.display = 'none';
+            resetBtn.style.display = 'block';
+        }
+
+        function restoreGame() {
+            renderBank();
+            updateScoreDisplay();
+            state.tokens.forEach(t => {
+                createTokenDOM(t.value, t.x, t.y, t.id, t.z);
+                if(t.z > globalZ) globalZ = t.z;
             });
-            document.getElementById('setup-screen').style.display = 'none';
+            setupScreen.style.display = 'none';
+            resetBtn.style.display = 'block';
         }
 
-        function spawnToken(e) {
-            e.preventDefault(); 
-            const original = e.target;
-            const val = parseInt(original.dataset.value);
-
-            // Clone and Setup
-            const clone = original.cloneNode(true);
-            clone.classList.remove('bank-token');
-            clone.style.position = 'absolute';
-            
-            // Pop to very front immediately
-            globalZIndex++;
-            clone.style.zIndex = globalZIndex;
-            
-            // Center on finger
-            const rect = original.getBoundingClientRect();
-            clone.style.left = rect.left + 'px';
-            clone.style.top = rect.top + 'px';
-            
-            document.body.appendChild(clone);
-            
-            // Start Dragging Logic
-            dragToken(clone, e, val, true);
+        function resetGame() {
+            if(!confirm("Start a new game?")) return;
+            localStorage.removeItem('tokenBoardState');
+            location.reload();
         }
 
-        function dragToken(elem, startEvent, value, isNew) {
-            // Visual feedback
+        function saveState() {
+            localStorage.setItem('tokenBoardState', JSON.stringify(state));
+        }
+
+        function dismissWin() {
+            winScreen.style.display = 'none';
+        }
+
+        // --- GAME LOGIC ---
+        function checkWinCondition() {
+            if (state.target !== null && state.score >= state.target && !state.won) {
+                state.won = true; 
+                winDisplayScore.textContent = state.score; // Updates the big number
+                winScreen.style.display = 'flex'; 
+                saveState();
+            }
+        }
+
+        function updateScoreDisplay() {
+            scoreDisplay.textContent = state.score;
+        }
+
+        function spawnToken(e, val, color) {
+            e.preventDefault();
+            const id = Date.now() + Math.random().toString(16).slice(2);
+            const x = e.clientX - 30; 
+            const y = e.clientY - 30; 
+            globalZ++;
+            const el = createTokenDOM(val, x, y, id, globalZ, color);
+            startDrag(el, e, val, id, true);
+        }
+
+        function createTokenDOM(val, x, y, id, zIndex, colorOverride = null) {
+            const el = document.createElement('div');
+            el.className = 'token';
+            el.textContent = val;
+            el.style.position = 'absolute';
+            el.style.left = x + 'px'; el.style.top = y + 'px'; el.style.zIndex = zIndex;
+            el.id = 'tok-' + id;
+            
+            if(!colorOverride) {
+                const idx = state.values.indexOf(val);
+                el.style.backgroundColor = palette[idx % palette.length];
+            } else {
+                el.style.backgroundColor = colorOverride;
+            }
+
+            if(!colorOverride) { 
+                el.addEventListener('pointerdown', (e) => startDrag(el, e, val, id, false));
+            }
+            document.body.appendChild(el);
+            return el;
+        }
+
+        function startDrag(elem, startEvent, val, id, isNew) {
+            elem.setPointerCapture(startEvent.pointerId);
             elem.classList.add('dragging');
-            elem.setPointerCapture(startEvent.pointerId); // Glues coin to finger
-
-            // Bring to front (in case it was an old coin)
-            globalZIndex++;
-            elem.style.zIndex = globalZIndex;
+            globalZ++; elem.style.zIndex = globalZ;
 
             const rect = elem.getBoundingClientRect();
             const shiftX = startEvent.clientX - rect.left;
             const shiftY = startEvent.clientY - rect.top;
 
-            function onPointerMove(event) {
-                let newLeft = event.clientX - shiftX;
-                let newTop = event.clientY - shiftY;
+            function onMove(e) {
+                let nx = e.clientX - shiftX;
+                let ny = e.clientY - shiftY;
+                
+                const maxX = window.innerWidth - elem.offsetWidth;
+                const maxY = window.innerHeight - elem.offsetHeight;
+                if (nx < 0) nx = 0; if (nx > maxX) nx = maxX;
+                if (ny < 0) ny = 0; if (ny > maxY) ny = maxY;
 
-                // Wall Collisions
-                if (newLeft < 0) newLeft = 0;
-                if (newLeft > window.innerWidth - elem.offsetWidth) newLeft = window.innerWidth - elem.offsetWidth;
-                if (newTop < 0) newTop = 0;
-                if (newTop > window.innerHeight - elem.offsetHeight) newTop = window.innerHeight - elem.offsetHeight;
+                elem.style.left = nx + 'px';
+                elem.style.top = ny + 'px';
 
-                elem.style.left = newLeft + 'px';
-                elem.style.top = newTop + 'px';
-
-                if (isOverElement(elem, trash)) trash.classList.add('hovered');
+                if (checkCollision(elem, trash)) trash.classList.add('hovered');
                 else trash.classList.remove('hovered');
             }
 
-            // Listen for move
-            elem.addEventListener('pointermove', onPointerMove);
-
-            // Handle Drop
-            elem.onpointerup = function(event) {
-                elem.removeEventListener('pointermove', onPointerMove);
-                elem.releasePointerCapture(event.pointerId);
-                elem.classList.remove('dragging'); // Stop glowing
-                elem.onpointerup = null; // Clean up
+            function onUp(e) {
+                elem.removeEventListener('pointermove', onMove);
+                elem.removeEventListener('pointerup', onUp);
+                elem.classList.remove('dragging');
                 trash.classList.remove('hovered');
 
-                // 1. Check if dropped in TRASH
-                if (isOverElement(elem, trash)) {
-                    if (!isNew) updateScore(-value); // Only subtract if it was already counted
+                const currentX = parseFloat(elem.style.left);
+                
+                // 1. Trash Logic
+                if (checkCollision(elem, trash)) {
+                    if(!isNew) {
+                        state.score -= val;
+                        removeTokenFromState(id);
+                    }
                     elem.remove();
+                    updateScoreDisplay();
+                    saveState();
                     return;
                 }
 
-                // 2. Check if dropped back in BANK (The "Stacking" Fix)
+                // 2. Bank Logic
                 const bankRect = bank.getBoundingClientRect();
-                if (event.clientY < bankRect.bottom) {
-                    // It's still in the top area, destroy it.
-                    if (!isNew) updateScore(-value); // Refund points if we dragged an old one back up
+                if (e.clientY < bankRect.bottom) {
+                     if(!isNew) {
+                        state.score -= val;
+                        removeTokenFromState(id);
+                    }
                     elem.remove();
+                    updateScoreDisplay();
+                    saveState();
                     return;
                 }
 
                 // 3. Valid Drop
                 if (isNew) {
-                    updateScore(value);
-                    // Now it is an "old" coin, attach listener for next time
-                    elem.addEventListener('pointerdown', (e) => dragToken(elem, e, value, false));
-                } else {
-                    // Re-attach listener to the old coin
-                    elem.addEventListener('pointerdown', (e) => dragToken(elem, e, value, false));
+                    state.score += val;
+                    elem.addEventListener('pointerdown', (evt) => startDrag(elem, evt, val, id, false));
                 }
-            };
+                
+                updateTokenState(id, val, currentX, parseFloat(elem.style.top), globalZ);
+                updateScoreDisplay();
+                
+                checkWinCondition();
+                
+                saveState();
+            }
+
+            elem.addEventListener('pointermove', onMove);
+            elem.addEventListener('pointerup', onUp);
         }
 
-        function isOverElement(token, target) {
-            const r1 = token.getBoundingClientRect();
-            const r2 = target.getBoundingClientRect();
+        // --- HELPERS ---
+        function checkCollision(el1, el2) {
+            const r1 = el1.getBoundingClientRect();
+            const r2 = el2.getBoundingClientRect();
             return !(r1.right < r2.left || r1.left > r2.right || r1.bottom < r2.top || r1.top > r2.bottom);
         }
 
-        function updateScore(val) {
-            currentScore += val;
-            scoreDisplay.textContent = currentScore;
+        function updateTokenState(id, val, x, y, z) {
+            const existing = state.tokens.find(t => t.id === id);
+            if (existing) { existing.x = x; existing.y = y; existing.z = z; } 
+            else { state.tokens.push({ id, value: val, x, y, z }); }
+        }
+
+        function removeTokenFromState(id) {
+            state.tokens = state.tokens.filter(t => t.id !== id);
+        }
+        function renderBank() {
+            bank.innerHTML = '';
+            state.values.forEach((val, index) => {
+                const btn = document.createElement('div');
+                btn.className = 'token bank-token';
+                btn.textContent = val;
+                btn.dataset.value = val;
+                btn.style.backgroundColor = palette[index % palette.length];
+                btn.addEventListener('pointerdown', (e) => spawnToken(e, val, palette[index % palette.length]));
+                bank.appendChild(btn);
+            });
         }
     </script>
 </body>
